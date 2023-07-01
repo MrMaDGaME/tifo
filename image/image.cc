@@ -1,6 +1,8 @@
 #include "image.hh"
 
-#define TRESHOLD 128
+#define TRESHOLD 240
+
+Image::Image() : width(0), height(0), binaryPixels(nullptr) {}
 
 Image::Image(const std::string &path) {
 
@@ -63,7 +65,7 @@ Image::Image(const std::string &path) {
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             png_bytep pixel = &(rowPointers[y][x * 4]);
-            bool isBlack = (pixel[0] * 0.299 + pixel[1] * 0.587 + pixel[2] * 0.114) < TRESHOLD;
+            bool isBlack = ((pixel[0] * 0.299 + pixel[1] * 0.587 + pixel[2] * 0.114) < TRESHOLD) && (pixel[3] > 0);
             binaryPixels[y * width + x] = isBlack;
         }
     }
@@ -75,6 +77,13 @@ Image::Image(const std::string &path) {
     delete[] rowPointers;
     png_destroy_read_struct(&png, &info, NULL);
     fclose(file);
+}
+
+Image::Image(int width, int height) : width(width), height(height) {
+    binaryPixels = new bool[width * height];
+    for (int i = 0; i < width * height; ++i) {
+        binaryPixels[i] = false;
+    }
 }
 
 Image::~Image() {
@@ -117,7 +126,7 @@ void Image::to_ppm(const std::string &path) const {
     myfile.close();
 }
 
-std::vector<int> Image::detectHorizontalLines(float threshold) {
+std::vector<int> Image::detectHorizontalLines(float threshold) const {
     std::vector<int> lines;
     for (int y = 0; y < height; ++y) {
         int count = 0;
@@ -126,7 +135,7 @@ std::vector<int> Image::detectHorizontalLines(float threshold) {
                 count++;
             }
         }
-        if (count > 0.5 * width) {
+        if (static_cast<float>(count) > threshold * static_cast<float>(width)) {
             lines.push_back(y);
         }
     }
@@ -135,20 +144,20 @@ std::vector<int> Image::detectHorizontalLines(float threshold) {
 
 void Image::removeHorizontalLines(float threshold) {
     std::vector<int> lines = detectHorizontalLines(threshold);
-    std::cout << "Lignes horizontales détectées : " << lines.size() << std::endl;
-
-    for (int y : lines) {
+    for (int y: lines) {
         for (int x = 0; x < width; ++x) {
             setPixel(x, y, false); // Marquer la ligne comme du fond (blanc)
         }
     }
 }
 
-void Image::dilate() {
+void Image::dilate(int neighborhoodSize) {
     bool *tmp = new bool[width * height];
+    for (int i = 0; i < width * height; ++i) {
+        tmp[i] = false;
+    }
 
     // Définir le voisinage (fenêtre) pour la dilatation
-    int neighborhoodSize = 3; // Taille de la fenêtre
     int neighborhoodOffset = neighborhoodSize / 2; // Décalage pour centrer la fenêtre
 
     // Parcourir tous les pixels de l'image
@@ -175,11 +184,13 @@ void Image::dilate() {
     binaryPixels = tmp;
 }
 
-void Image::erode() {
+void Image::erode(int neighborhoodSize) {
     bool *tmp = new bool[width * height];
+    for (int i = 0; i < width * height; ++i) {
+        tmp[i] = false;
+    }
 
     // Définir le voisinage (fenêtre) pour l'érosion
-    int neighborhoodSize = 3; // Taille de la fenêtre
     int neighborhoodOffset = neighborhoodSize / 2; // Décalage pour centrer la fenêtre
 
     // Parcourir tous les pixels de l'image
@@ -210,4 +221,56 @@ void Image::erode() {
     }
     delete[] binaryPixels;
     binaryPixels = tmp;
+}
+
+void Image::open(int neighborhoodSize) {
+    erode(neighborhoodSize);
+    dilate(neighborhoodSize);
+}
+
+void Image::close(int neighborhoodSize) {
+    dilate(neighborhoodSize);
+    erode(neighborhoodSize);
+}
+
+Image *Image::rotate(int deg) const {
+    auto *rotatedImage = new Image(width, height);
+    int cx = width / 2;
+    int cy = height / 2;
+    // Convertir l'angle en radians
+    double angle = deg * M_PI / 180.0f;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int rx = static_cast<int>(std::cos(angle) * static_cast<float>(x - cx) -
+                                      std::sin(angle) * static_cast<float>(y - cy) + static_cast<float>(cx));
+            int ry = static_cast<int>(std::sin(angle) * static_cast<float>(x - cx) +
+                                      std::cos(angle) * static_cast<float>(y - cy) + static_cast<float>(cy));
+            if (rx >= 0 && rx < width && ry >= 0 && ry < height) {
+                rotatedImage->setPixel(rx, ry, getPixel(x, y));
+            }
+        }
+    }
+    return rotatedImage;
+}
+
+void Image::align(float threshold) const {
+    Image *rotatedImages[21];
+    unsigned long max_lines = 0;
+    int max_deg = 0;
+    for (int deg = -10; deg <= 10; ++deg) {
+        rotatedImages[deg + 10] = rotate(deg);
+        unsigned long lines = rotatedImages[deg + 10]->detectHorizontalLines(threshold).size();
+        if (lines > max_lines) {
+            max_lines = lines;
+            max_deg = deg;
+        }
+    }
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            binaryPixels[y * width + x] = rotatedImages[max_deg + 10]->getPixel(x, y);
+        }
+    }
+    for (auto &rotatedImage : rotatedImages) {
+        delete rotatedImage;
+    }
 }

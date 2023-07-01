@@ -1,16 +1,22 @@
 #include <iostream>
 #include "image/image.hh"
 
+#define DETECTION_THRESHOLD 0.5
+
 int main() {
     std::cout << "loading image..." << std::endl;
-    Image image("../inputs/come_and_get_your_love.png");
+    Image image("../inputs/redbone.png");
 
-    image.removeHorizontalLines(0.5);
-    image.dilate();
-    image.erode();
+    std::cout << "detecting lines..." << std::endl;
+    image.align(DETECTION_THRESHOLD);
+
+    std::cout << "removing lines..." << std::endl;
+    image.removeHorizontalLines(DETECTION_THRESHOLD);
+
+    std::cout << "transforming image..." << std::endl;
+    image.close(4);
 
     std::cout << "saving image..." << std::endl;
-    image.to_ppm("../results/come_and_get_your_love.ppm");
-
+    image.to_ppm("../results/redbone.ppm");
     return 0;
 }

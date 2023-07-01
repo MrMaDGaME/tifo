@@ -13,7 +13,11 @@ public:
         int theta;
     };
 
+    Image();
+
     explicit Image(const std::string &path);
+
+    Image(int width, int height);
 
     ~Image();
 
@@ -27,13 +31,22 @@ public:
 
     void to_ppm(const std::string &path) const;
 
-    std::vector<int> detectHorizontalLines(float threshold = 0.5);
+    std::vector<int> detectHorizontalLines(float threshold = 0.5) const;
 
     void removeHorizontalLines(float threshold = 0.5);
 
-    void dilate();
+    void dilate(int neighborhoodSize);
 
-    void erode();
+    void erode(int neighborhoodSize);
+
+    void open(int neighborhoodSize);
+
+    void close(int neighborhoodSize);
+
+    // Create a new image with a rotation of angle degrees
+    Image *rotate(int degrees) const;
+
+    void align(float threshold) const;
 
 protected:
     int width;
