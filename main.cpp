@@ -6,7 +6,7 @@
 
 int main() {
     std::cout << "loading image..." << std::endl;
-    Image image("../inputs/test2.png", BIN_TRESHOLD);
+    Image image("../inputs/redbone.png", BIN_TRESHOLD);
 
     std::cout << "detecting lines..." << std::endl;
     image.align(DETECTION_THRESHOLD);
@@ -18,6 +18,6 @@ int main() {
     image.close(4);
 
     std::cout << "saving image..." << std::endl;
-    image.to_ppm("../results/test2.ppm");
+    image.to_ppm("../results/redbone.ppm");
     return 0;
 }
