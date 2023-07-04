@@ -1,10 +1,8 @@
 #include "image.hh"
 
-#define TRESHOLD 240
-
 Image::Image() : width(0), height(0), binaryPixels(nullptr) {}
 
-Image::Image(const std::string &path) {
+Image::Image(const std::string &path, int threshold) {
 
     // Ouvrir le fichier image PNG en lecture
     FILE *file = fopen(path.c_str(), "rb");
@@ -65,7 +63,7 @@ Image::Image(const std::string &path) {
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             png_bytep pixel = &(rowPointers[y][x * 4]);
-            bool isBlack = ((pixel[0] * 0.299 + pixel[1] * 0.587 + pixel[2] * 0.114) < TRESHOLD) && (pixel[3] > 0);
+            bool isBlack = ((pixel[0] * 0.299 + pixel[1] * 0.587 + pixel[2] * 0.114) < threshold) && (pixel[3] > 0);
             binaryPixels[y * width + x] = isBlack;
         }
     }
@@ -166,15 +164,12 @@ void Image::dilate(int neighborhoodSize) {
             // Vérifier si le pixel est noir (true)
             if (getPixel(x, y)) {
                 // Parcourir le voisinage autour du pixel
-                for (int i = -neighborhoodOffset; i <= neighborhoodOffset; ++i) {
-                    for (int j = -neighborhoodOffset; j <= neighborhoodOffset; ++j) {
-                        int nx = x + i;
-                        int ny = y + j;
+                for (int j = -neighborhoodOffset; j <= neighborhoodOffset; ++j) {
+                    int ny = y + j;
 
-                        // Vérifier les limites de l'image
-                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                            tmp[ny * width + nx] = true; // Effectuer la dilatation (OR logique)
-                        }
+                    // Vérifier les limites de l'image
+                    if (x >= 0 && x < width && ny >= 0 && ny < height) {
+                        tmp[ny * width + x] = true; // Effectuer la dilatation (OR logique)
                     }
                 }
             }
@@ -202,16 +197,13 @@ void Image::erode(int neighborhoodSize) {
                 bool isEroded = true;
 
                 // Parcourir le voisinage autour du pixel
-                for (int i = -neighborhoodOffset; i <= neighborhoodOffset; ++i) {
-                    for (int j = -neighborhoodOffset; j <= neighborhoodOffset; ++j) {
-                        int nx = x + i;
-                        int ny = y + j;
+                for (int j = -neighborhoodOffset; j <= neighborhoodOffset; ++j) {
+                    int ny = y + j;
 
-                        // Vérifier les limites de l'image
-                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                            if (!getPixel(nx, ny)) { // Vérifier si le pixel est blanc (false)
-                                isEroded = false;
-                            }
+                    // Vérifier les limites de l'image
+                    if (x >= 0 && x < width && ny >= 0 && ny < height) {
+                        if (!getPixel(x, ny)) { // Vérifier si le pixel est blanc (false)
+                            isEroded = false;
                         }
                     }
                 }
@@ -270,7 +262,7 @@ void Image::align(float threshold) const {
             binaryPixels[y * width + x] = rotatedImages[max_deg + 10]->getPixel(x, y);
         }
     }
-    for (auto &rotatedImage : rotatedImages) {
+    for (auto &rotatedImage: rotatedImages) {
         delete rotatedImage;
     }
 }

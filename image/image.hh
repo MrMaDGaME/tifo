@@ -15,7 +15,7 @@ public:
 
     Image();
 
-    explicit Image(const std::string &path);
+    explicit Image(const std::string &path, int threshold = 240);
 
     Image(int width, int height);
 
